@@ -1,9 +1,5 @@
 
 
-In diesem Dokument finden Sie einige Informationen zur Laufzeit des Optuna-Hyperparameter-Tunings und mögliche Anpassungen, um die Trainingszeit zu verkürzen oder das Tuning abzubrechen.
-
----
-
 ## Wie lange kann das Tuning dauern?
 
 Die Laufzeit eines Optuna-Tuningprozesses variiert stark und hängt von mehreren Faktoren ab:
