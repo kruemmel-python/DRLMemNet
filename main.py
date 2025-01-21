@@ -1,3 +1,17 @@
+
+# DRLMemNet - Framework für Deep Reinforcement Learning mit speicherbasierten Netzwerkarchitekturen
+# Copyright (C) 2024 Ralf Krümmel
+# Projekt-Repository: https://github.com/kruemmel-python/DRLMemNet.git
+#
+# Dieses Programm ist freie Software: Sie können es unter den Bedingungen der
+# GNU General Public License, Version 3, wie von der Free Software Foundation veröffentlicht,
+# weitergeben und/oder modifizieren.
+#
+# Dieses Programm wird in der Hoffnung verteilt, dass es nützlich sein wird, 
+# aber OHNE JEGLICHE GARANTIE; sogar ohne die implizite Garantie der 
+# MARKTGÄNGIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.  
+# Siehe die GNU General Public License für weitere Details.
+
 import logging
 import torch
 import torch.nn as nn
