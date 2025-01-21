@@ -11,319 +11,6 @@
 # aber OHNE JEGLICHE GARANTIE; sogar ohne die implizite Garantie der 
 # MARKTGÄNGIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.  
 # Siehe die GNU General Public License für weitere Details.
-
-schreibe es professioneller!
-# DRLMemNet: Ein Deep Learning Modell mit differenzierbarem Speicher
-
-## Beschreibung
-
-DRLMemNet ist ein Deep-Learning-Modell mit einem integrierten differenzierbaren Speicher, das für Aufgaben der sequenziellen Datenverarbeitung entwickelt wurde, wie z.B. Textgenerierung oder -analyse. Es kombiniert die Fähigkeiten eines sequenziellen Modells (GRU) mit der Fähigkeit, Informationen in einem externen Speicher zu speichern und abzurufen.
-
-### Kernkomponenten
-
-1.  **Differentiable Memory:**
-    *   Ein Speicher, der durch **Keys** und **Values** repräsentiert wird. Diese sind als trainierbare Parameter (Tensoren) implementiert.
-    *   **Lesen:** Eine Query (Abfrage) wird verwendet, um eine gewichtete Summe von Werten aus dem Speicher zu lesen. Die Gewichte basieren auf der Ähnlichkeit der Query mit den Keys im Speicher (Softmax-Attention).
-    *   **Schreiben:** Werte werden in den Speicher mit einem bestimmten Schreib-Stärke-Parameter (`write_strength`) geschrieben, und zwar basierend auf dem Durchschnitt der aktualisierten Keys und Values.
-    *   Der Speicher verfolgt die Nutzungshäufigkeit der Speicherplätze.
-    *   Die Speicherwerte werden bei jeder Schreiboperation normalisiert.
-
-2.  **Controller:**
-    *   Enthält ein `Embedding`-Layer für die Eingabetoken.
-    *   Eine `Linear`-Schicht zur Transformation des Embeddings in eine **Query** für den Speicher.
-    *   Eine `GRU`-Schicht (Gated Recurrent Unit) zur sequenziellen Verarbeitung.
-    *   Mehrere `Linear`- und `Dropout`-Schichten für die Merkmalsanpassung und Regularisierung.
-    *   Eine weitere lineare Schicht für die Ausgabe (Vokabulargröße).
-    *   Zusätzliche `Linear`-Schichten zur Vorbereitung der Memory-Updates.
-
-3.  **Vocabulary:**
-    *   Ein Vokabular, das die Zuordnung zwischen Token und Indizes und umgekehrt verwaltet.
-    *   Enthält spezielle Tokens wie `<pad>`, `<unk>`, `<sos>` und `<eos>`.
-
-4.  **TextDataset:**
-    *   Ein benutzerdefinierter Dataset-Typ, der Text aus einer Datei lädt, ihn tokenisiert und in numerische Indizes umwandelt.
-    *   Führt Padding auf die maximale Sequenzlänge aus.
-
-### Architektur
-
-Die Kernarchitektur ist wie folgt:
-
-1.  Die Eingabetoken werden eingebettet.
-2.  Die eingebetteten Eingaben werden in eine Query für den Speicher transformiert.
-3.  Die Query wird verwendet, um einen gewichteten Value aus dem Speicher zu lesen.
-4.  Der Speicheroutput wird an eine GRU-Schicht weitergeleitet, um die Sequenz zu verarbeiten.
-5.  Der RNN-Output wird durch weitere lineare Schichten transformiert.
-6.  Eine Ausgabeschicht mit Softmax-Aktivierung liefert die Tokenvorhersagen.
-7.  Die Memory-Keys und -Values werden mit einem gewichteten Durchschnitt aus den aktuellen Eingaben aktualisiert.
-
-### Funktionsweise
-
-1.  Die Eingabesequenz wird durch die `embedding` Layer repräsentiert.
-2.  Die eingebettete Eingabe wird verwendet, um den **Differentiable Memory** anzusprechen.
-3.  Der Speicher liefert relevante Informationen an das RNN.
-4.  Das RNN verarbeitet diese Information, um eine Ausgabe zu erzeugen.
-5.  Der Memory wird mit dem Output aktualisiert.
-6.  Das Modell wird mit einer `CrossEntropyLoss`-Funktion trainiert, um die Vorhersage der Zielsequenz zu optimieren.
-
-## Installation
-
-Um das Modell zu verwenden, stellen Sie sicher, dass Sie die folgenden Abhängigkeiten installiert haben:
-
-```bash
-pip install torch numpy tqdm scikit-learn matplotlib pyyaml optuna
-```
-
-## Verwendung
-
-### 1. Konfiguration
-
-Die Konfiguration des Modells erfolgt über eine `config.yaml` Datei. Hier sind die wichtigsten Parameter:
-
-*   `data_path`: Pfad zur Eingabetextdatei.
-*   `log_file`: Pfad zur Logdatei.
-*   `embedding_dim`: Dimension des Embedding-Layers.
-*   `memory_size`: Anzahl der Speicherplätze im differenzierbaren Speicher.
-*   `learning_rate`: Lernrate für den Optimizer.
-*   `batch_size`: Batch-Größe für das Training.
-*   `max_seq_length`: Maximale Sequenzlänge für die Eingabe.
-*   `train_size_ratio`: Verhältnis der Trainingsdaten.
-*   `val_size_ratio`: Verhältnis der Validierungsdaten.
-*   `epochs`: Anzahl der Trainings-Epochen.
-*   `accumulation_steps`: Anzahl der Schritte zur Gradientenakkumulation.
-*   `write_strength`: Stärke des Schreibens in den Memory (0-1).
-*   `patience`: Geduld für Early Stopping.
-*   `save_path`: Pfad zum Speichern des Modells.
-
-Beispiel `config.yaml`:
-
-```yaml
-data_path: "data/my_text_data.txt"
-log_file: "training.log"
-embedding_dim: 512
-memory_size: 1024
-learning_rate: 0.001
-batch_size: 32
-max_seq_length: 128
-train_size_ratio: 0.8
-val_size_ratio: 0.1
-epochs: 100
-accumulation_steps: 4
-write_strength: 0.05
-patience: 10
-save_path: "saved_models"
-```
-
-### 2. Training
-
-1.  Stellen Sie sicher, dass Ihre Daten im `data_path` liegen.
-2.  Starten Sie das Training mit folgendem Befehl:
-
-```bash
-python your_script_name.py
-```
-
-### 3. Modell laden und verwenden (Beispiel)
-Nach dem Training kann das beste Modell geladen und verwendet werden:
-
-```python
-checkpoint = torch.load("saved_models/memory_model.pth")  # Pfad anpassen
-best_config = checkpoint['config']
-best_vocab = checkpoint['vocab']
-
-# Modell neu instanziieren und Gewichte laden
-best_model = Controller(
-    best_config['embedding_dim'],
-    best_config['embedding_dim'],
-    len(best_vocab),
-    best_config['memory_size'],
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-)
-best_model.load_state_dict(checkpoint['model_state_dict'])
-best_model.eval()
-
-# Anschließend können Sie das Modell z. B. wie folgt nutzen:
-# (1) Input vorbereiten (tokenisieren, padden)
-# (2) Vorhersage berechnen
-# (3) Ausgabe interpretieren (decodieren)
-```
-
-### Wichtige Aspekte im Code
-
-*   **Konfiguration:** Die `Config`-Klasse verwaltet alle wichtigen Parameter über eine YAML-Datei oder ein Dictionary.
-*   **Logging:** Der Code verwendet das Python `logging`-Modul, um Trainingsdetails aufzuzeichnen.
-*   **Reproduzierbarkeit:** Ein Seed wird gesetzt, um die Reproduzierbarkeit zu gewährleisten.
-*   **Gerätenutzung:** Das Modell wird automatisch auf der GPU ausgeführt, falls verfügbar.
-*   **Data Loaders:** Die `TextDataset` Klasse lädt und verarbeitet die Textdaten für das Training.
-*   **Training:**
-    *   Die `train_model_epoch`-Funktion führt eine Trainings-Epoche durch mit optionaler Gradientenakkumulation und Clipping.
-    *   Die `validate_model`-Funktion evaluiert das Modell auf dem Validierungsset.
-    *   `evaluate_model`-Funktion evaluiert das Modell auf dem Testset und berechnet Accuracy und F1-Score.
-*   **Early Stopping:** Das Training wird vorzeitig gestoppt, wenn sich der Validierungsverlust über eine bestimmte Anzahl von Epochen nicht mehr verbessert.
-*   **Speichern:** Das beste Modell und das Vokabular werden nach dem Training gespeichert.
-*   **Optuna:** Die `objective`-Funktion und die `train_model`-Funktion nutzen Optuna für die Hyperparameter-Optimierung.
-
-*   ## Hyperparameter-Optimierung
-
-Das Modell nutzt `Optuna`, um automatisch die besten Hyperparameter zu finden. Die optimierten Parameter sind:
-
--   **`embedding_dim`**: Die Dimensionalität der Token-Einbettungen (128 bis 2048).
--   **`memory_size`**: Die Größe des Speichers (256 bis 4096).
--   **`learning_rate`**: Die Lernrate für den AdamW-Optimierer (1e-5 bis 1e-2, logarithmisch).
--   **`batch_size`**: Die Batch-Größe (8, 16, 32 oder 64).
--   **`accumulation_steps`**: Die Anzahl der Schritte zur Gradientenakkumulation (1 bis 10).
--   **`epochs`**: Die maximale Anzahl der Trainingsepochen (50, 100, 150 oder 200).
--   **`write_strength`**: Die Stärke, mit der der Speicher aktualisiert wird (0.01 bis 0.1, logarithmisch).
-
-## Training mit Early Stopping und Wiederaufnahme
-
-- Das Modell verwendet Early Stopping mit der Option, das Training wieder aufzunehmen, falls die Validierung nicht mehr besser wird.
-- Wenn das Training vorzeitig abgebrochen wird, speichert das Modell den aktuellen Stand (Hyperparameter und Modell-Parameter).
-- Der Optimierungsprozess mit `Optuna` startet erneut und versucht durch andere Hyperparameter die Validierungs-Performance zu erhöhen, solange bis die optimale Konfiguration gefunden ist.
-- Der beste Modell-State wird während des Traings fortlaufend gespeichert und am ende des Trainings gespeichert.
-
-## Funktionen und Klassen im Detail
-
-### `Config` Klasse
-
-Verwaltet Konfigurationsparameter, liest sie aus einer YAML-Datei oder einem Dictionary und validiert die Parameter.
-
-### `DifferentiableMemory` Klasse
-
-Implementiert den differenzierbaren Speicher.
-
-*   `read`: Liest Werte aus dem Speicher anhand einer Query.
-*   `write` und `write_as_mean`: Aktualisieren den Speicher mit neuen Keys und Values, unter Berücksichtigung des `write_strength`-Parameters und einem Mean über die Batch-Dimension.
-
-### `Controller` Klasse
-
-Verwaltet das Hauptmodell mit Embedding, RNN und differenzierbarem Speicher.
-
-### `Vocabulary` Klasse
-
-Verwaltet die Zuordnung zwischen Token und Indizes.
-
-### `TextDataset` Klasse
-
-Lädt, tokenisiert und präpariert die Textdaten für das Training.
-
-### `train_model_epoch` Funktion
-
-Trainiert das Modell für eine Epoche mit optionaler Gradientenakkumulation.
-
-### `validate_model` Funktion
-
-Evaluiert das Modell auf dem Validierungsset.
-
-### `calculate_metrics` Funktion
-
-Berechnet Genauigkeit und F1-Score.
-
-### `evaluate_model` Funktion
-
-Testet das Modell auf dem Testset und gibt Verlust, Genauigkeit und F1-Score zurück.
-
-### `create_data_loaders` Funktion
-
-Erstellt DataLoader-Objekte für das Training, die Validierung und das Testen.
-
-### `load_and_prepare_data` Funktion
-
-Kombiniert den Data Load Prozess.
-
-### `create_model_and_optimizer` Funktion
-
-Erzeugt das Model, den Optimizer, das Kriterium und den Scheduler.
-
-### `create_vocabulary` Funktion
-
-Erstellt die Vocabular.
-
-### `plot_training` Funktion
-
-Plotet den Trainings- und Validierungsverlust sowie die Testgenauigkeit und F1-Score über die Epochen hinweg.
-
-### `setup_training` Funktion
-
-Bereitet die notwendigen Komponenten für das Training vor (Modell, Optimizer, Daten).
-
-### `run_training_loop` Funktion
-
-Führt die Trainingsschleife durch und implementiert Early Stopping.
-
-### `save_best_model` Funktion
-
-Speichert das beste trainierte Modell, Vokabular und die Konfiguration.
-
-### `objective` Funktion (Optuna)
-
-Definiert die Zielfunktion für die Hyperparameteroptimierung mit Optuna.
-
-### `train_model` Funktion (Hauptfunktion)
-
-Steuert den gesamten Trainingsprozess, inklusive der Hyperparameteroptimierung mittels Optuna und des Trainings mit den besten Parametern.
-
-###  `if __name__ == "__main__":` Abschnitt
-
-Die Hauptausführungslogik des Skripts.
-Hier wird die Funktion `train_model` aufgerufen, um den Trainingsprozess zu starten.
-Außerdem ist ein Beispielcode zum Laden und Verwenden des Modells nach dem Training als Kommentar vorhanden.
-
-## Nach dem Training
-
-Nach dem Training kann das gespeicherte Modell wie folgt wiederverwendet werden (siehe Kommentar im Hauptskript):
-
-```python
-# Laden der Checkpoint-Datei
-checkpoint = torch.load("memory_model.pth")
-best_config = checkpoint['config']
-best_vocab = checkpoint['vocab']
-
-# Instanziierung des Modells
-best_model = Controller(
-    best_config['embedding_dim'],
-    best_config['embedding_dim'],
-    len(best_vocab),
-    best_config['memory_size'],
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-)
-
-# Laden des Model-States
-best_model.load_state_dict(checkpoint['model_state_dict'])
-best_model.eval()
-```
-
-## Logging
-
-Der Trainingsprozess wird detailliert in der Datei `training.log` protokolliert. Hier werden die wichtigsten Informationen gespeichert, wie z.B.:
-
--   Verwendete Konfiguration.
--   Verlust während des Trainings und der Validierung pro Epoche.
--   Test-Metriken (Genauigkeit und F1-Score)
--   Informationen zu vorzeitigem Abbruch.
--   Die besten Hyperparameter, welche automatisch gefunden wurden.
-
-## Weiterentwicklung
-
-Dieses Modell kann als Grundlage für komplexere Aufgaben dienen, z.B.:
-
--   Verbesserung der Architektur des Controllers.
--   Verwendung komplexerer Speichermechanismen.
--   Anwendung auf verschiedene Aufgaben, z. B. maschinelle Übersetzung oder Frage-Antwort-Systeme.
-
-## Lizenz
-
-Dieses Projekt ist unter der MIT-Lizenz lizenziert.
-
-## Kontakt
-
-Für Fragen oder Feedback erreichen Sie mich unter hier.
-
-
-
-
-
-
-
 import logging
 import torch
 import torch.nn as nn
@@ -352,7 +39,7 @@ SOS_INDEX = 2
 EOS_INDEX = 3
 
 # --------------------------------------------------
-# 1) Konfigurationsklasse mit aktualisiertem load_config
+# 1) Konfigurationsklasse mit load_config
 # --------------------------------------------------
 @dataclass
 class Config:
@@ -534,7 +221,6 @@ class DifferentiableMemory(nn.Module):
         if DEBUG_MODE:
             print("Aktualisierte Memory-Parameter (write_as_mean).")
 
-
 class Controller(nn.Module):
     """
     Das Hauptmodell, welches die Memory-Komponente nutzt.
@@ -586,7 +272,6 @@ class Controller(nn.Module):
         output = self.fc_output_act(output)
         return output, query
 
-
 class Vocabulary:
     """
     Verwaltet die Abbildung von Token -> Index und Index -> Token.
@@ -605,7 +290,7 @@ class Vocabulary:
             self.index_to_token.append(token)
 
     def __len__(self):
-        return len(self.index_to_token)
+        return len(self.token_to_index)
 
     def __getitem__(self, token):
         return self.token_to_index.get(token, self.unk_index)
@@ -622,7 +307,6 @@ class Vocabulary:
     def __contains__(self, token):
         return token in self.token_to_index
 
-
 def create_vocab_from_iterator(iterator: Iterator[List[str]], special_tokens: List[str]) -> Vocabulary:
     vocab = Vocabulary(special_tokens)
     for tokens in iterator:
@@ -630,13 +314,11 @@ def create_vocab_from_iterator(iterator: Iterator[List[str]], special_tokens: Li
             vocab.add_token(token)
     return vocab
 
-
 def create_tokenizer(text: str, special_chars=r"[^a-zA-Z0-9\s.,?!]"):
     text = text.lower()
     text = re.sub(r"([.,?!])", r" \1 ", text)
     text = re.sub(special_chars, "", text)
     return re.findall(r'\b\w+|\S\b', text)
-
 
 class TextDataset(Dataset):
     """
@@ -680,7 +362,6 @@ class TextDataset(Dataset):
         target_ids = F.pad(target_ids, (0, target_padding_length), value=self.vocab["<pad>"])
 
         return input_ids, target_ids
-
 
 # --------------------------------------------------
 # 4) Trainings- und Evaluierungsfunktionen
@@ -733,7 +414,6 @@ def train_model_epoch(
     logger.info(f"Epoche {epoch + 1:03d} Trainingsverlust: {avg_epoch_loss:.4f}")
     return avg_epoch_loss
 
-
 def validate_model(model: nn.Module, val_dataloader: DataLoader, criterion) -> float:
     """
     Validiert das Modell und gibt den durchschnittlichen Validierungsverlust zurück.
@@ -758,7 +438,6 @@ def validate_model(model: nn.Module, val_dataloader: DataLoader, criterion) -> f
     logger.info(f'Validierungsverlust: {avg_val_loss:.4f}')
     return avg_val_loss
 
-
 def calculate_metrics(predictions: torch.Tensor, targets: torch.Tensor, pad_index: int) -> Tuple[float, float]:
     """
     Berechnet Accuracy und F1-Score und ignoriert dabei Padding-Tokens.
@@ -778,7 +457,6 @@ def calculate_metrics(predictions: torch.Tensor, targets: torch.Tensor, pad_inde
     accuracy = accuracy_score(masked_targets, masked_predictions)
     f1 = f1_score(masked_targets, masked_predictions, average='weighted', zero_division=1)
     return accuracy, f1
-
 
 def evaluate_model(model: nn.Module, test_dataloader: DataLoader, criterion, vocab) -> Tuple[float, float, float]:
     """
@@ -827,7 +505,6 @@ def evaluate_model(model: nn.Module, test_dataloader: DataLoader, criterion, voc
 
     return avg_test_loss, avg_accuracy, avg_f1
 
-
 def create_data_loaders(dataset, batch_size, train_size_ratio, val_size_ratio):
     total_size = len(dataset)
     train_size = int(train_size_ratio * total_size)
@@ -850,7 +527,6 @@ def create_data_loaders(dataset, batch_size, train_size_ratio, val_size_ratio):
 
     return train_dataloader, val_dataloader, test_dataloader
 
-
 def load_and_prepare_data(config: Config, tokenizer, vocab):
     dataset = TextDataset(config.data_path, tokenizer, vocab, config.max_seq_length)
     train_dataloader, val_dataloader, test_dataloader = create_data_loaders(
@@ -860,7 +536,6 @@ def load_and_prepare_data(config: Config, tokenizer, vocab):
         config.val_size_ratio
     )
     return train_dataloader, val_dataloader, test_dataloader
-
 
 def create_model_and_optimizer(config: Config, vocab_len):
     model = Controller(
@@ -875,7 +550,6 @@ def create_model_and_optimizer(config: Config, vocab_len):
     criterion = nn.CrossEntropyLoss()
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=1e-6)
     return model, optimizer, criterion, scheduler
-
 
 def create_vocabulary(config: Config):
     tokenizer = lambda text: create_tokenizer(text)
@@ -896,7 +570,6 @@ def create_vocabulary(config: Config):
     )
     vocab.set_default_index(vocab["<unk>"])
     return tokenizer, vocab
-
 
 def plot_training(train_losses, val_losses, test_accuracies, test_f1_scores):
     plt.figure(figsize=(12, 6))
@@ -920,12 +593,10 @@ def plot_training(train_losses, val_losses, test_accuracies, test_f1_scores):
     plt.tight_layout()
     plt.show()
 
-
 def setup_training(config: Config, tokenizer, vocab):
     model, optimizer, criterion, scheduler = create_model_and_optimizer(config, len(vocab))
     train_dataloader, val_dataloader, test_dataloader = load_and_prepare_data(config, tokenizer, vocab)
     return model, optimizer, criterion, scheduler, train_dataloader, val_dataloader, test_dataloader
-
 
 def run_training_loop(
     model: nn.Module,
@@ -999,7 +670,6 @@ def run_training_loop(
     test_loss, accuracy, f1 = evaluate_model(model, test_dataloader, criterion, vocab)
     return train_losses, val_losses, test_accuracies, test_f1_scores
 
-
 def save_best_model(
     config: Config,
     model: nn.Module,
@@ -1017,7 +687,6 @@ def save_best_model(
     }, Path(config.save_path) / "memory_model.pth")
     logger.info("Bestes Modell und Vokabular erfolgreich gespeichert!")
     print("Bestes Modell erfolgreich gespeichert.")
-
 
 # --------------------------------------------------
 # 5) Optuna-Objective und Haupt-Trainingsfunktion
@@ -1052,7 +721,6 @@ def objective(trial: optuna.Trial, config: Config) -> float:
 
     best_val_loss = min(val_losses) if len(val_losses) > 0 else float('inf')
     return best_val_loss
-
 
 def train_model(config: Config):
     print("train_model() gestartet.")
@@ -1092,7 +760,6 @@ def train_model(config: Config):
 
     print("train_model() abgeschlossen.")
     logger.info("train_model() abgeschlossen.")
-
 
 # --------------------------------------------------
 # 6) Hauptausführung
