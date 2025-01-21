@@ -297,7 +297,7 @@ Dieses Modell kann als Grundlage für komplexere Aufgaben dienen, z.B.:
 
 ## Lizenz
 
-Dieses Projekt ist unter der MIT-Lizenz lizenziert.
+Dieses Projekt ist unter der GPL v3-Lizenz lizenziert.
 
 ## Kontakt
 
