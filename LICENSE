@@ -1,21 +1,87 @@
-MIT License
+# DRLMemNet
 
-Copyright (c) 2025 Ralf Krümmel
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+**DRLMemNet** ist ein Framework für Deep Reinforcement Learning mit speicherbasierten Netzwerkarchitekturen. Dieses Projekt ist unter der GNU General Public License v3 lizenziert.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Lizenz
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+### GNU GENERAL PUBLIC LICENSE
+**Version 3, 29. Juni 2007**
+
+Copyright (C) 2024 Ralf Krümmel
+[Projekt-Repository: DRLMemNet](https://github.com/kruemmel-python/DRLMemNet.git)
+
+Jeder darf diese Lizenz vervielfältigen und unveränderte Kopien davon weitergeben, aber es ist nicht erlaubt, sie zu ändern.
+
+---
+
+#### Präambel
+
+Die GNU General Public License ist eine freie, Copyleft-Lizenz für Software und andere Werke.
+
+Der Zweck dieser Lizenz besteht darin, sicherzustellen, dass du die Freiheit hast, das Programm zu teilen und zu verändern, um sicherzustellen, dass es für alle Benutzer frei bleibt. Diese Lizenz gilt für die meisten von der Free Software Foundation veröffentlichten Softwarepakete sowie für jedes andere Programm, dessen Autoren sich dazu entschließen, sie zu verwenden. Du kannst sie auch für dein Projekt anwenden.
+
+---
+
+#### Allgemeine Bedingungen
+
+**0. Definitionen**
+-   „Dieses Programm“ bezeichnet das von dieser Lizenz abgedeckte Programm.
+-   „Sie“ bezeichnet den Lizenznehmer.
+-   „Änderung“ bedeutet, das Programm oder ein davon abgeleitetes Werk anzupassen, zu übersetzen oder zu modifizieren.
+-   „Drittparteien“ sind Personen oder Organisationen, die nicht direkt mit Ihnen verbunden sind.
+
+---
+
+**1. Erlaubnis zur Vervielfältigung und Verbreitung**
+Sie dürfen dieses Programm unverändert vervielfältigen und verbreiten, solange Sie an jeder Kopie eine angemessene Urheberrechtserklärung und eine Kopie dieser Lizenz beifügen.
+
+Sie dürfen auch eine Gebühr für das physische Kopieren berechnen.
+
+---
+
+**2. Änderung und Verbreitung abgeleiteter Werke**
+Sie dürfen Ihre eigene Version dieses Programms anpassen und weiterverbreiten, **unter der Bedingung**, dass:
+- Sie dem modifizierten Werk einen klaren Hinweis auf Änderungen beifügen.
+- Ihre Version ebenfalls unter dieser Lizenz veröffentlicht wird.
+- Sie den Quellcode vollständig bereitstellen.
+
+---
+
+**3. Schutz Ihrer Rechte**
+Sie dürfen dieses Programm nicht patentieren oder Bedingungen auferlegen, die die Bedingungen dieser Lizenz einschränken.
+
+---
+
+**4. Keine Garantie**
+DAS PROGRAMM WIRD OHNE JEGLICHE GARANTIE BEREITGESTELLT. SOWEIT NACH GELTENDEM RECHT ZULÄSSIG, WIRD KEINE GARANTIE FÜR MARKTGÄNGIGKEIT ODER EIGNUNG FÜR EINEN BESTIMMTEN ZWECK ÜBERNOMMEN.
+
+---
+
+**5. Annahme der Lizenz**
+Durch die Nutzung, Vervielfältigung oder Verbreitung dieses Programms erklären Sie sich mit den Bedingungen dieser Lizenz einverstanden.
+
+---
+
+#### Wie diese Lizenz anzuwenden ist
+
+Um diese Lizenz auf dein Programm anzuwenden, füge dem Quellcode folgende Kopfzeile hinzu:
+
+
+    DRLMemNet - Framework für Deep Reinforcement Learning mit speicherbasierten Netzwerkarchitekturen
+    Copyright (C) 2024 Ralf Krümmel
+    Projekt-Repository: https://github.com/kruemmel-python/DRLMemNet.git
+
+    Dieses Programm ist freie Software: Sie können es unter den Bedingungen der
+    GNU General Public License, Version 3, wie von der Free Software Foundation veröffentlicht,
+    weitergeben und/oder modifizieren.
+
+    Dieses Programm wird in der Hoffnung verteilt, dass es nützlich sein wird, 
+    aber OHNE JEGLICHE GARANTIE; sogar ohne die implizite Garantie der 
+    MARKTGÄNGIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.  
+    Siehe die GNU General Public License für weitere Details.
+
+    Sie sollten eine Kopie der GNU General Public License zusammen mit diesem Programm erhalten haben.
+    Falls nicht, siehe <http://www.gnu.org/licenses/>.
+
