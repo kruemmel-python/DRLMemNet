@@ -1,273 +1,166 @@
+# DRLMemNet: Differentiable Recurrent Learning with Memory Network
 
+## Modellbeschreibung
 
-# Experimenteller DRLMemNet
+Das `DRLMemNet`-Modell ist eine auf neuronalen Netzen basierende Architektur für die Verarbeitung von sequentiellen Daten, insbesondere für Aufgaben wie die Textgenerierung. Es kombiniert ein rekurrentes neuronales Netzwerk (RNN) mit einem differenzierbaren Speicher (Memory Network). Das Modell zielt darauf ab, durch die Nutzung eines expliziten Speichers die Fähigkeit zur Verarbeitung von längeren Sequenzen und komplexeren Beziehungen zwischen Elementen zu verbessern.
 
-## Einführung
+### Kernkomponenten
 
-Dieses Projekt implementiert den Experimentellen DRLMemNet, ein neuronales Netzwerk mit differenzierbarem Speicher und einem Controller, der auf Deep Reinforcement Learning (DRL) basiert. Der Hauptzweck dieses Modells ist es, sequenzielle Daten effektiv zu verarbeiten und zu speichern, um die Leistung bei Aufgaben wie Textverarbeitung und Sprachmodellierung zu verbessern.
+1.  **DifferentiableMemory**:
+    *   Implementiert einen externen, differenzierbaren Speicher, der aus Key- und Value-Matrizen besteht.
+    *   Die Speicherung erfolgt durch das Normalisieren der Keys und Values.
+    *   Die Lesefunktion verwendet ein Softmax über die Ähnlichkeit zwischen einer Query und den Keys, um die Memory-Inhalte zu gewichten.
+    *   Die Schreibfunktion nutzt einen gewichteten Mittelwert aus bestehenden und neuen Inhalten.
+    *   Verwaltet Nutzungscounts für jede Memory-Zelle.
+2.  **Controller**:
+    *   Das Hauptmodell, welches die Memory-Komponente nutzt.
+    *   Besteht aus einem Embedding-Layer zur Umwandlung von Token-Indizes in dichte Vektoren.
+    *   Verwendet eine lineare Schicht, um die Embedding-Vektoren in Query-Vektoren für das Memory zu transformieren.
+    *   Nutzt ein GRU (Gated Recurrent Unit) als rekurrentes Netzwerk zur Verarbeitung der aus dem Memory gelesenen Informationen.
+    *   Enthält lineare Schichten mit GELU-Aktivierungsfunktionen und Dropout für die finale Vorhersage.
+    *   Integrierte lineare Schichten für Memory-Updates, die durch die mittlere Embedding-Vektoren für Keys und Values aufgerufen werden.
+    *   Initialisiert die Gewichte der linearen Layer mit der Kaiming-Uniform-Methode und die Embedding-Layer mit einer Normalverteilung.
+3.  **Vocabulary**:
+    *   Verwaltet die Zuordnung von Token zu Indizes und umgekehrt.
+    *   Beinhaltet spezielle Tokens wie `<pad>`, `<unk>`, `<sos>` (Start of Sequence) und `<eos>` (End of Sequence).
+    *   Bietet Methoden zum Hinzufügen von Tokens und zum Abrufen von Indizes/Tokens.
+4.  **TextDataset**:
+    *   Liest Zeilen aus einer Textdatei und konvertiert sie in indizierte Eingabe- und Zielsequenzen.
+    *   Tokenisiert Texte und wandelt sie in numerische Sequenzen um.
+    *   Erzeugt Trainingsdaten mit Padding, um eine einheitliche Sequenzlänge zu gewährleisten.
 
-## Inhaltsverzeichnis
+### Trainingsprozess
 
-1. [Einführung](#einführung)
-2. [Installation](#installation)
-3. [Daten](#daten)
-4. [Konfiguration](#konfiguration)
-5. [Modellarchitektur](#modellarchitektur)
-6. [Training](#training)
-7. [Evaluierung](#evaluierung)
-8. [Ergebnisse](#ergebnisse)
-9. [Schlussfolgerung](#schlussfolgerung)
-10. [Zukünftige Arbeit](#zukünftige-arbeit)
-11. [Literatur](#literatur)
+1.  **Konfiguration**:
+    *   Verwendet eine `Config`-Klasse zum Laden und Validieren von Konfigurationsparametern.
+    *   Die Konfiguration kann entweder aus einer YAML-Datei oder einem Dictionary (z.B. der Ergebnis des Optuna-Tunings) geladen werden.
+    *   Enthält Parameter wie:
+        *   `data_path`: Pfad zur Eingabedatei
+        *   `log_file`: Pfad zur Logdatei
+        *   `embedding_dim`: Dimension des Embeddings
+        *   `memory_size`: Größe des Memory
+        *   `learning_rate`: Lernrate des Optimierers
+        *   `batch_size`: Anzahl der Elemente pro Batch
+        *   `max_seq_length`: Maximale Sequenzlänge
+        *   `train_size_ratio`, `val_size_ratio`: Aufteilungsverhältnis für Trainings- und Validierungsdaten
+        *   `epochs`: Anzahl der Trainingsepochen
+        *   `accumulation_steps`: Anzahl der Schritte zur Gradientenakkumulation
+        *   `write_strength`: Schreibstärke für das Memory
+        *   `patience`: Geduld für Early Stopping
+        *   `save_path`: Pfad zum Speichern des Modells
+        *   `device`: Gerät (CPU oder GPU)
+2.  **Datenvorbereitung**:
+    *   Erstellt ein Vokabular basierend auf den Tokens der Eingabedaten.
+    *   Initialisiert ein `TextDataset`, um die Trainingsdaten vorzubereiten.
+    *   Erstellt DataLoaders für Training, Validierung und Test.
+3.  **Modell und Optimierer**:
+    *   Initialisiert das `Controller`-Modell mit den konfigurierten Parametern.
+    *   Verwendet den AdamW-Optimierer mit einer Cosine Annealing Learning Rate Scheduler.
+    *   Verwendet die Cross-Entropy-Loss-Funktion als Kriterium.
+4.  **Training**:
+    *   Trainiert das Modell über mehrere Epochen.
+    *   Verwendet optional Gradientenakkumulation.
+    *   Führt eine Validierung nach jeder Epoche durch.
+    *   Führt Early Stopping durch, falls der Validierungsverlust sich nicht verbessert.
+    *   Speichert das beste Modell basierend auf dem Validierungsverlust.
+    *   Memory Update wird nach dem Gradientenupdate durchgeführt.
+5.  **Evaluierung**:
+    *   Berechnet Loss, Genauigkeit und F1-Score auf dem Test-Dataset.
+    *   Verwendet den `calculate_metrics`-Funktion um die Metriken auf den gemaskten Daten zu berechnen.
+    *   Der Evaluation wird speicherschonend batchweise ausgeführt.
+6.  **Optuna-Integration**:
+    *   Verwendet Optuna zur automatischen Hyperparameteroptimierung.
+    *   Das `objective`-Funktion definiert die zu optimierenden Parameter.
+    *   Die besten Hyperparameter werden zur finalen Trainingsrunde verwendet.
+7.  **Visualisierung**:
+    *   Plotet den Trainings- und Validierungsverlust sowie die Testgenauigkeit und den F1-Score.
+    *   Sichert die generierten Plots ab.
+8.  **Speicherung**:
+    *   Speichert das beste Modell (Gewichte), das Vokabular und die Konfiguration.
+    *   Die gespeicherten Modelle können geladen und zur Vorhersage verwendet werden.
+
+### Implementierung
+
+*   Die Implementierung ist in Python geschrieben und verwendet `PyTorch` für die Modellierung und das Training.
+*   Zusätzliche Bibliotheken sind `optuna` (für Hyperparameter-Tuning), `tqdm` (für Fortschrittsanzeigen), `matplotlib` (für Visualisierungen) und `PyYAML` (für Konfigurationsverwaltung).
+*   Die Logging-Funktionalität ist über das `logging`-Modul implementiert.
+*   Die Verwendung von Data Classes, um Parameter zu übergeben und zu verwalten, unterstützt die Codeklarheit.
+
+### Hauptfunktionen
+
+*   `train_model()`: Hauptfunktion, die den Trainingsprozess steuert.
+*   `objective()`: Funktion für die Optuna-Hyperparameteroptimierung.
+*   `train_model_epoch()`: Führt eine einzelne Trainings-Epoche durch.
+*   `validate_model()`: Validiert das Modell auf dem Validierungs-Dataset.
+*   `evaluate_model()`: Evaluiert das Modell auf dem Test-Dataset.
+*   `create_data_loaders()`: Erstellt DataLoaders für Training, Validierung und Test.
+*   `load_and_prepare_data()`: Lädt und bereitet Daten vor.
+*   `create_model_and_optimizer()`: Erstellt das Modell, den Optimierer, das Kriterium und den Learning Rate Scheduler.
+*   `create_vocabulary()`: Erstellt das Vokabular.
+*   `plot_training()`: Visualisiert die Trainingsmetriken.
+*   `setup_training()`: Setzt die Trainingseinstellungen (Modell, Optimierer, Kriterium, Scheduler, DataLoaders).
+*   `run_training_loop()`: Führt die Trainingsschleife aus.
+*   `save_best_model()`: Speichert das beste Modell, das Vokabular und die Konfiguration.
+
+### Anwendung
+
+Das `DRLMemNet`-Modell kann für eine Vielzahl von sequenziellen Datenverarbeitungsaufgaben verwendet werden, wie z. B.:
+
+*   Textgenerierung
+*   Maschinelle Übersetzung
+*   Textzusammenfassung
+*   Sequenzklassifizierung
+*   Dialogsysteme
 
 ## Installation
 
-Um das Projekt zu installieren und auszuführen, benötigen Sie Python 3.6 oder höher. Zusätzlich müssen die folgenden Bibliotheken installiert werden:
+1.  Stellen Sie sicher, dass Python (Version 3.8 oder höher) und pip installiert sind.
+2.  Installieren Sie die erforderlichen Bibliotheken mit dem Befehl:
 
-```bash
-pip install torch numpy scikit-learn matplotlib tqdm pyyaml
-```
-
-## Daten
-
-Die verwendeten Daten sind in der Datei `data/augmented_text_data.txt` gespeichert. Diese Datei enthält vorverarbeitete Textdaten, die für das Training und die Evaluierung des Modells verwendet werden.
+    ```bash
+    pip install torch optuna tqdm PyYAML scikit-learn matplotlib
+    ```
 
 ## Konfiguration
 
-Die Konfiguration des Modells erfolgt über die Datei `config.yaml`. Diese Datei enthält alle relevanten Parameter, die für das Training und die Evaluierung des Modells erforderlich sind.
+1.  Erstellen Sie eine Datei `config.yaml` im Stammverzeichnis Ihres Projektes mit folgenden Inhalten:
 
-```yaml
-data_path: "data/augmented_text_data.txt"
-log_file: "logs/training.log"
-embedding_dim: 128
-memory_size: 512
-learning_rate: 0.01
-batch_size: 16
-max_seq_length: 100
-train_size_ratio: 0.8
-val_size_ratio: 0.1
-epochs: 50
-accumulation_steps: 1
-write_strength: 0.1
-patience: 3
-save_path: "models/"
-```
+    ```yaml
+    data_path: "data.txt"
+    log_file: "training.log"
+    embedding_dim: 256
+    memory_size: 1024
+    learning_rate: 0.001
+    batch_size: 32
+    max_seq_length: 50
+    train_size_ratio: 0.8
+    val_size_ratio: 0.1
+    epochs: 100
+    accumulation_steps: 2
+    write_strength: 0.05
+    patience: 10
+    save_path: "model_checkpoints"
+    ```
 
-## Modellarchitektur
+    *   Passen Sie die Werte entsprechend Ihren Bedürfnissen an.
 
-Das Modell besteht aus zwei Hauptkomponenten:
+## Ausführung
 
-1. **Differentiable Memory**: Ein differenzierbarer Speicher, der es ermöglicht, Informationen über mehrere Zeitschritte zu speichern und abzurufen.
-2. **Controller**: Ein neuronales Netzwerk, das die Eingaben verarbeitet und die Interaktion mit dem Speicher steuert.
+1.  Speichern Sie die obige Implementierung in einer Datei z.B. `drlmemnet.py`.
+2.  Führen Sie das Training aus, indem Sie folgendes Kommando in der Konsole ausführen:
 
-### Differentiable Memory
+    ```bash
+    python drlmemnet.py
+    ```
 
-Die DifferentiableMemory-Klasse implementiert einen differenzierbaren Speicher, der es ermöglicht, Schlüssel-Wert-Paare zu speichern und abzurufen. Die Klasse verwendet eine Aufmerksamkeitsmechanismus, um relevante Informationen aus dem Speicher abzurufen.
+    *   Das Training startet automatisch und die Ergebnisse werden in der Kommandozeile und im `training.log` angezeigt.
+    *   Das beste trainierte Modell wird im angegebenen Pfad gespeichert (defaut: `"model_checkpoints"`)
 
-```python
-class DifferentiableMemory(nn.Module):
-    def __init__(self, memory_size: int, embedding_size: int, device=DEVICE):
-        super(DifferentiableMemory, self).__init__()
-        self.keys = nn.Parameter(torch.randn(memory_size, embedding_size, device=device))
-        self.values = nn.Parameter(torch.randn(memory_size, embedding_size, device=device))
-        self.embedding_size = embedding_size
-        self.memory_size = memory_size
-        self.device = device
-        self._initialize_weights()
-        self.usage_counts = nn.Parameter(torch.ones(memory_size, device=device), requires_grad=False)
+## Weiterführende Informationen
 
-    def _initialize_weights(self):
-        nn.init.kaiming_uniform_(self.keys)
-        nn.init.kaiming_uniform_(self.values)
-
-    def read(self, query: torch.Tensor) -> torch.Tensor:
-        scores = torch.matmul(query, self.keys.T)
-        attention_weights = F.softmax(scores, dim=-1)
-        memory_output = torch.matmul(attention_weights, self.values)
-        activated_memory_indices = torch.argmax(scores, dim=-1)
-        self.usage_counts[activated_memory_indices] += 1
-        return memory_output
-
-    def write(self, updated_keys: torch.Tensor, updated_values: torch.Tensor, write_strength: float):
-        updated_keys = F.normalize(updated_keys, dim=-1)
-        updated_values = F.normalize(updated_values, dim=-1)
-        batch_size = updated_keys.shape[0]
-        if batch_size != self.memory_size:
-            updated_keys = updated_keys.mean(dim=0, keepdim=True).expand(self.memory_size, -1)
-            updated_values = updated_values.mean(dim=0, keepdim=True).expand(self.memory_size, -1)
-        with torch.no_grad():
-            self.keys.copy_((1 - write_strength) * self.keys.data + write_strength * updated_keys)
-            self.values.copy_((1 - write_strength) * self.values.data + write_strength * updated_values)
-        with torch.no_grad():
-            self.keys.copy_(F.normalize(self.keys, dim=1))
-            self.values.copy_(F.normalize(self.values, dim=1))
-```
-
-### Controller
-
-Der Controller besteht aus mehreren Komponenten, darunter ein Embedding-Layer, ein GRU-Layer und mehrere vollständig verbundene Schichten. Der Controller verarbeitet die Eingaben und interagiert mit dem Speicher, um die Ausgaben zu erzeugen.
-
-```python
-class Controller(nn.Module):
-    def __init__(self, embedding_size: int, memory_embedding_size: int, vocab_size: int, memory_size: int, device: torch.device = DEVICE):
-        super(Controller, self).__init__()
-        self.memory = DifferentiableMemory(memory_size, memory_embedding_size, device)
-        self.embedding = nn.Embedding(vocab_size, embedding_size)
-        self.fc_query = nn.Linear(embedding_size, memory_embedding_size)
-        self.fc_query_act = nn.GELU()
-        self.rnn = nn.GRU(memory_embedding_size, 256, num_layers=2, batch_first=True)
-        self.fc1 = nn.Linear(256, 256)
-        self.fc1_act = nn.GELU()
-        self.dropout = nn.Dropout(0.3)
-        self.fc_output = nn.Linear(256, vocab_size)
-        self.fc_output_act = nn.GELU()
-        self.fc_query_memory = nn.Linear(memory_embedding_size, memory_embedding_size)
-        self.fc_query_memory_act = nn.GELU()
-        self.fc_value_memory = nn.Linear(vocab_size, memory_embedding_size)
-        self.fc_value_memory_act = nn.GELU()
-        self.device = device
-        self._initialize_weights()
-
-    def _initialize_weights(self):
-        nn.init.kaiming_uniform_(self.fc_query.weight)
-        nn.init.zeros_(self.fc_query.bias)
-        nn.init.kaiming_uniform_(self.fc1.weight)
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.kaiming_uniform_(self.fc_output.weight)
-        nn.init.zeros_(self.fc_output.bias)
-        nn.init.normal_(self.embedding.weight, mean=0.0, std=0.1)
-
-    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        embedded = self.embedding(inputs)
-        query = self.fc_query(embedded)
-        query = self.fc_query_act(query)
-        memory_output = self.memory.read(query)
-        rnn_output, _ = self.rnn(memory_output)
-        hidden = self.fc1(rnn_output)
-        hidden = self.fc1_act(hidden)
-        hidden = self.dropout(hidden)
-        output = self.fc_output(hidden)
-        output = self.fc_output_act(output)
-        return output, query
-```
-
-## Training
-
-Das Training des Modells erfolgt in mehreren Schritten:
-
-1. **Datenvorbereitung**: Die Daten werden geladen und in Trainings-, Validierungs- und Testdatensätze aufgeteilt.
-2. **Modellinitialisierung**: Das Modell und der Optimizer werden initialisiert.
-3. **Training-Loop**: Das Modell wird für eine bestimmte Anzahl von Epochen trainiert. Nach jeder Epoche wird das Modell validiert und die Leistung auf dem Testdatensatz evaluiert.
-4. **Modellspeicherung**: Das beste Modell wird basierend auf dem Validierungsverlust gespeichert.
-
-```python
-def train_model(config: Config):
-    tokenizer, vocab = create_vocabulary(config)
-    model, optimizer, criterion, scheduler = create_model_and_optimizer(config, len(vocab))
-    train_dataloader, val_dataloader, test_dataloader = load_and_prepare_data(config, tokenizer, vocab)
-    best_val_loss = float('inf')
-    best_model_state = None
-    epochs_no_improve = 0
-    patience = config.patience
-    save_path = Path(config.save_path)
-    save_path.mkdir(parents=True, exist_ok=True)
-    train_losses = []
-    val_losses = []
-    test_accuracies = []
-    test_f1_scores = []
-
-    for epoch in range(config.epochs):
-        train_loss = train_epoch(model, train_dataloader, optimizer, criterion, epoch, accumulation_steps=config.accumulation_steps, write_strength=config.write_strength)
-        val_loss = validate_model(model, val_dataloader, criterion)
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_model_state = model.state_dict()
-            epochs_no_improve = 0
-            torch.save(model.state_dict(), save_path / f"memory_model_epoch_{epoch + 1}.pth")
-        else:
-            epochs_no_improve += 1
-            if epochs_no_improve > patience:
-                break
-        test_loss, accuracy, f1 = evaluate_model(model, test_dataloader, criterion, vocab)
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
-        test_accuracies.append(accuracy)
-        test_f1_scores.append(f1)
-
-    if best_model_state is not None:
-        config_to_save = config.save_config()
-        torch.save({
-            'model_state_dict': best_model_state,
-            'vocab': vocab,
-            'config': config_to_save
-        }, save_path / "memory_model.pth")
-
-    plot_training(train_losses, val_losses, test_accuracies, test_f1_scores)
-```
-
-## Evaluierung
-
-Die Evaluierung des Modells erfolgt auf dem Testdatensatz. Die Metriken Accuracy und F1-Score werden verwendet, um die Leistung des Modells zu bewerten.
-
-```python
-def evaluate_model(model: nn.Module, test_dataloader: DataLoader, criterion, vocab: Vocabulary) -> Tuple[float, float, float]:
-    model.eval()
-    test_loss = 0.0
-    total_batches = len(test_dataloader)
-    all_predictions = []
-    all_targets = []
-
-    with torch.no_grad():
-        for test_inputs, test_targets in tqdm(test_dataloader, desc="Evaluierung"):
-            test_inputs, test_targets = test_inputs.to(DEVICE), test_targets.to(DEVICE)
-            test_outputs, _ = model(test_inputs)
-            test_loss += criterion(F.log_softmax(test_outputs, dim=-1).view(-1, len(model.embedding.weight)), test_targets.view(-1)).item()
-            all_predictions.append(test_outputs)
-            all_targets.append(test_targets)
-
-    avg_test_loss = test_loss / total_batches
-    all_predictions = torch.cat(all_predictions, dim=0)
-    all_targets = torch.cat(all_targets, dim=0)
-    accuracy, f1 = calculate_metrics(all_predictions, all_targets, vocab.get_index("<pad>"))
-    return avg_test_loss, accuracy, f1
-```
-
-## Ergebnisse
-
-Die Ergebnisse des Trainings und der Evaluierung werden in Form von Verlustkurven und Metriken wie Accuracy und F1-Score dargestellt. Diese Ergebnisse zeigen die Leistung des Modells während des Trainings und der Evaluierung.
-
-```python
-def plot_training(train_losses, val_losses, test_accuracies, test_f1_scores):
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 2, 1)
-    plt.plot(train_losses, label='Trainingsverlust')
-    plt.plot(val_losses, label='Validierungsverlust')
-    plt.xlabel('Epoche')
-    plt.ylabel('Verlust')
-    plt.legend()
-    plt.title('Trainings- und Validierungsverlust')
-    plt.subplot(1, 2, 2)
-    plt.plot(test_accuracies, label='Testgenauigkeit')
-    plt.plot(test_f1_scores, label='Test F1-Score')
-    plt.xlabel('Epoche')
-    plt.ylabel('Metrik')
-    plt.legend()
-    plt.title('Testgenauigkeit und F1-Score')
-    plt.tight_layout()
-    plt.show()
-```
-
-## Schlussfolgerung
-
-Der Experimentelle DRLMemNet zeigt vielversprechende Ergebnisse bei der Verarbeitung von sequenziellen Daten. Die Integration eines differenzierbaren Speichers und eines Controllers ermöglicht es, Informationen über mehrere Zeitschritte zu speichern und abzurufen, was die Leistung bei Aufgaben wie Textverarbeitung und Sprachmodellierung verbessert.
-
-## Zukünftige Arbeit
-
-Zukünftige Arbeiten könnten sich auf die Erweiterung des Modells konzentrieren, um andere Arten von sequenziellen Daten zu verarbeiten, wie z.B. Zeitreihen oder Audiodaten. Zusätzlich könnten weitere Verbesserungen an der Modellarchitektur und den Trainingsmethoden vorgenommen werden, um die Leistung weiter zu verbessern.
-
-## Literatur
-
-- [1] Hochreiter, S., & Schmidhuber, J. (1997). Long short-term memory. Neural computation, 9(8), 1735-1780.
-- [2] Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., ... & Polosukhin, I. (2017). Attention is all you need. Advances in neural information processing systems, 30.
+*   Der Code ist mit ausführlichen Kommentaren versehen, um die einzelnen Schritte zu erläutern.
+*   Die Hyperparameteroptimierung mit Optuna kann durch Anpassen der Optuna-Parameter in der Funktion `train_model` weiter angepasst werden.
+*   Der verwendete Datensatz (`data.txt`) muss pro Zeile eine Trainingssequenz enthalten.
+*   Die Logging-Ausgabe hilft bei der Beobachtung des Trainingsfortschritts und bei der Fehlersuche.
 
 
